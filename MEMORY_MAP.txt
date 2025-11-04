@@ -1,0 +1,121 @@
+================================================================================
+                    SAVE FILE MEMORY MAP - TimNPeans.sav
+================================================================================
+
+File Size: 24,822 bytes (0x60F6)
+Format: Unreal Engine GVAS (Version 3)
+Game: Ride (RideGamejam)
+
+================================================================================
+                              HEADER SECTION
+================================================================================
+
+0x0000 - 0x0003  [04] Magic: "GVAS"
+0x0004 - 0x0007  [04] Save Version: 3
+0x0008 - 0x000B  [04] Package Version: 522
+0x000C - 0x000D  [02] Engine Major: 1017
+0x000E - 0x000F  [02] Engine Minor: 0
+0x0010 - 0x002B  [28] Build String: "++RideGamejam+main"
+...
+0x06CC - 0x0703  [56] Save Type: "/Game/Ride/Game/BP_SessionSaveGame.BP_SessionSaveGame_C"
+
+================================================================================
+                           GAMEPLAY DATA SECTION
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          CHECKPOINT & PROGRESS                              │
+├─────────────┬──────────┬────────┬─────────────────────────────────────────┤
+│ Offset      │ Size     │ Type   │ Description                             │
+├─────────────┼──────────┼────────┼─────────────────────────────────────────┤
+│ 0x070A      │ 17 bytes │ String │ Property: "CurrentCheckpoint"           │
+│ 0x0735      │ 4 bytes  │ Int32  │ ★ VALUE: 9 (Current checkpoint)         │
+└─────────────┴──────────┴────────┴─────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            VEHICLE DAMAGE                                   │
+├─────────────┬──────────┬────────┬─────────────────────────────────────────┤
+│ Offset      │ Size     │ Type   │ Description                             │
+├─────────────┼──────────┼────────┼─────────────────────────────────────────┤
+│ 0x073C      │ -        │ Array  │ VehicleDamage Array Start               │
+│             │          │        │                                         │
+│ 0x0811      │ 17 bytes │ String │ Property: "DamageType.Frame"            │
+│ 0x085B      │ 4 bytes  │ Int32  │ ★ VALUE: 0 (Frame damage)               │
+│             │          │        │                                         │
+│ 0x08DB      │ 18 bytes │ String │ Property: "DamageType.Engine"           │
+│ 0x0925      │ 4 bytes  │ Int32  │ ★ VALUE: 0 (Engine damage)              │
+│             │          │        │                                         │
+│ 0x09A6      │ 19 bytes │ String │ Property: "DamageType.Tire.RL"          │
+│ 0x09F0      │ 4 bytes  │ Int32  │ ★ VALUE: 0 (Rear Left tire)             │
+│             │          │        │                                         │
+│ 0x0A71      │ 19 bytes │ String │ Property: "DamageType.Tire.FR"          │
+│ 0x0ABB      │ 4 bytes  │ Int32  │ ★ VALUE: 0 (Front Right tire)           │
+│             │          │        │                                         │
+│ 0x0B3C      │ 19 bytes │ String │ Property: "DamageType.Tire.RR"          │
+│ 0x0B86      │ 4 bytes  │ Int32  │ ★ VALUE: 0 (Rear Right tire)            │
+│             │          │        │                                         │
+│ 0x0C07      │ 19 bytes │ String │ Property: "DamageType.Tire.FL"          │
+│ 0x0C51      │ 4 bytes  │ Int32  │ ★ VALUE: 0 (Front Left tire)            │
+└─────────────┴──────────┴────────┴─────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        CURRENCY & RESOURCES                                 │
+├─────────────┬──────────┬────────┬─────────────────────────────────────────┤
+│ Offset      │ Size     │ Type   │ Description                             │
+├─────────────┼──────────┼────────┼─────────────────────────────────────────┤
+│ 0x0C6C      │ 8 bytes  │ String │ Property: "EpicPens"                    │
+│ 0x0C8E      │ 4 bytes  │ Int32  │ ★ VALUE: 16 (Currency/collectibles)     │
+│             │          │        │                                         │
+│ 0x0C96      │ 12 bytes │ String │ Property: "VehicleParts"                │
+│ 0x0CBC      │ 4 bytes  │ Int32  │ ★ VALUE: 20 (Vehicle parts)             │
+└─────────────┴──────────┴────────┴─────────────────────────────────────────┘
+
+================================================================================
+                         OTHER DATA SECTIONS
+================================================================================
+
+0x0CC0 - 0x0F7F  [704] AttachpointSave (Map data - item placements)
+0x0F80 - 0x106F  [240] RemovedParts (Array of removed vehicle parts)
+0x1070 - 0x4FFF [16K] PlayerSave (Player data, customization, stats)
+0x5000 - 0x60F5  [4K] MapData, PlayerDeaths, Tapes, etc.
+
+================================================================================
+                            KEY OBSERVATIONS
+================================================================================
+
+• All integer values are stored in little-endian format
+• Property names are null-terminated ASCII strings
+• Values typically appear 25-35 bytes after property name
+• Vehicle damage values range from 0 (no damage) to 100 (max damage)
+• Currency and parts can safely be increased to 9999
+• Checkpoint values should stay within valid game range
+
+================================================================================
+                         SAFE EDITING BOUNDARIES
+================================================================================
+
+✓ SAFE TO EDIT:
+  - All values marked with ★ in the map above
+  - Recommended max for currency: 9999
+  - Recommended max for parts: 9999
+  - Vehicle damage: 0-100 (0 = perfect condition)
+
+✗ DO NOT EDIT:
+  - Header section (0x0000 - 0x06FF)
+  - Property name strings
+  - Array length values
+  - Structure metadata
+  - File size must remain exactly 24,822 bytes
+
+================================================================================
+                             LEGEND
+================================================================================
+
+[##]  = Size in bytes
+★     = Primary editable value
+Int32 = 32-bit integer (4 bytes)
+String= Null-terminated ASCII string
+Array = Collection of values
+Map   = Key-value pairs
+
+================================================================================

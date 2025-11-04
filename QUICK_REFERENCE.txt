@@ -1,0 +1,86 @@
+# QUICK REFERENCE - Hex Editing Guide
+
+## Editable Offsets
+
+### Main Values
+```
+0x0735  →  CurrentCheckpoint  (Int32)  [Current: 9]
+0x0C8E  →  EpicPens          (Int32)  [Current: 16]
+0x0CBC  →  VehicleParts      (Int32)  [Current: 20]
+```
+
+### Vehicle Damage
+```
+0x085B  →  Frame Damage      (Int32)  [Current: 0]
+0x0925  →  Engine Damage     (Int32)  [Current: 0]
+0x09F0  →  Tire RL Damage    (Int32)  [Current: 0]
+0x0ABB  →  Tire FR Damage    (Int32)  [Current: 0]
+0x0B86  →  Tire RR Damage    (Int32)  [Current: 0]
+0x0C51  →  Tire FL Damage    (Int32)  [Current: 0]
+```
+
+## Common Hex Values (Little-Endian)
+
+```
+Decimal    Hex Bytes
+-------    ---------
+0          00 00 00 00
+10         0A 00 00 00
+50         32 00 00 00
+100        64 00 00 00
+500        F4 01 00 00
+999        E7 03 00 00
+1000       E8 03 00 00
+5000       88 13 00 00
+9999       0F 27 00 00
+10000      10 27 00 00
+99999      9F 86 01 00
+```
+
+## Popular Modifications
+
+### Max Currency & Parts
+```
+Offset 0x0C8E: 0F 27 00 00  (9999 EpicPens)
+Offset 0x0CBC: 0F 27 00 00  (9999 VehicleParts)
+```
+
+### Perfect Vehicle
+```
+Offset 0x085B: 00 00 00 00  (No Frame damage)
+Offset 0x0925: 00 00 00 00  (No Engine damage)
+Offset 0x09F0: 00 00 00 00  (No Tire RL damage)
+Offset 0x0ABB: 00 00 00 00  (No Tire FR damage)
+Offset 0x0B86: 00 00 00 00  (No Tire RR damage)
+Offset 0x0C51: 00 00 00 00  (No Tire FL damage)
+```
+
+### Reset Progress
+```
+Offset 0x0735: 00 00 00 00  (Checkpoint 0)
+```
+
+## Step-by-Step: Using HxD
+
+1. Open `TimNPeans.sav` in HxD (or any hex editor)
+2. Press Ctrl+G (Go To)
+3. Enter the offset (e.g., `C8E`)
+4. Select 4 bytes
+5. Type the new hex value
+6. Save (Ctrl+S)
+7. Done!
+
+## Verification
+
+After editing, verify your changes:
+- File size should remain 24,822 bytes
+- Magic bytes at 0x00 should be: `47 56 41 53` (GVAS)
+- Test in-game with a small change first
+
+## Remember
+
+✓ Backup first!
+✓ Close game before editing
+✓ Use little-endian format
+✓ Keep file size the same
+✗ Don't edit while game is running
