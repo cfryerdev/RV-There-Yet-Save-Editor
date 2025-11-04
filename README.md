@@ -1,4 +1,4 @@
-# Ride Save Game Editor - Complete Package
+# RV There Yet Save Game Editor - Sample Project
 
 Welcome! This package contains everything you need to edit your Ride save files. Note: This is just a tech demo of having Claude attempt at looking at a save file for a game it does not know, do an analysis, and build a save editor. Its also rather amusing that it thinks EpicPens are currency/money or something lol
 
