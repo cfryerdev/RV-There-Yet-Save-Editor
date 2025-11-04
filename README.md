@@ -1,6 +1,6 @@
 # Ride Save Game Editor - Complete Package
 
-Welcome! This package contains everything you need to edit your Ride (RideGamejam) save files.
+Welcome! This package contains everything you need to edit your Ride save files. Note: This is just a tech demo of having Claude attempt at looking at a save file for a game it does not know, do an analysis, and build a save editor. Its also rather amusing that it thinks EpicPens are currency/money or something lol
 
 ## 📦 What's Included
 
@@ -87,19 +87,19 @@ Set all these offsets to `00 00 00 00`:
 
 **Windows:**
 ```
-%LOCALAPPDATA%\RideGamejam\Saved\SaveGames\
+%LOCALAPPDATA%\\Saved\SaveGames\
 ```
 
 **Linux (Steam/Proton):**
 ```
-~/.steam/steam/steamapps/compatdata/[APPID]/pfx/drive_c/users/steamuser/AppData/Local/RideGamejam/Saved/SaveGames/
+~/.steam/steam/steamapps/compatdata/[APPID]/pfx/drive_c/users/steamuser/AppData/Local//Saved/SaveGames/
 ```
 
 ## ✅ Verified & Tested
 
 All values and offsets have been verified on:
 - File: TimNPeans.sav (24,822 bytes)
-- Game: Ride (RideGamejam)
+- Game: Ride 
 - Format: Unreal Engine GVAS v3
 
 ## ⚙️ Requirements
@@ -165,6 +165,6 @@ If something doesn't work:
 
 **Package Version:** 1.0
 **Last Updated:** November 2024
-**Game:** Ride (RideGamejam)
+**Game:** Ride 
 
 Happy editing! 🎮✨
