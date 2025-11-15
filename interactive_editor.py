@@ -9,6 +9,32 @@ import shutil
 import os
 import glob
 
+def find_property_value(data, property_name, property_type='IntProperty'):
+    """Find a property and its value in the save file."""
+    prop_bytes = property_name.encode('ascii') + b'\x00'
+    pos = data.find(prop_bytes)
+
+    if pos == -1:
+        return None, None
+
+    # Skip property name and find the value
+    # Typical structure: PropertyName + PropertyType + metadata + value
+    # For IntProperty, value is typically ~25-30 bytes after property name
+
+    offset_attempts = [25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35]
+    for offset_delta in offset_attempts:
+        value_offset = pos + len(prop_bytes) + offset_delta
+        if value_offset + 4 <= len(data):
+            try:
+                value = struct.unpack_from('<I', data, value_offset)[0]
+                # Check if this looks like a reasonable value (not 0 or too large)
+                if 0 <= value < 1000000:
+                    return value_offset, value
+            except:
+                continue
+
+    return None, None
+
 def read_int32(data, offset):
     """Read a 32-bit integer from the data."""
     return struct.unpack_from('<I', data, offset)[0]
@@ -59,13 +85,18 @@ def display_save_info(filepath):
             'parts': None
         }
 
-        # Try to read values (may fail if offsets are different)
-        try:
-            info['checkpoint'] = struct.unpack_from('<I', data, 0x0735)[0]
-            info['pens'] = struct.unpack_from('<I', data, 0x0C8E)[0]
-            info['parts'] = struct.unpack_from('<I', data, 0x0CBC)[0]
-        except:
-            pass
+        # Find values dynamically
+        checkpoint_offset, checkpoint_value = find_property_value(data, 'CurrentCheckpoint')
+        if checkpoint_offset:
+            info['checkpoint'] = checkpoint_value
+
+        pens_offset, pens_value = find_property_value(data, 'EpicPens')
+        if pens_offset:
+            info['pens'] = pens_value
+
+        parts_offset, parts_value = find_property_value(data, 'VehicleParts')
+        if parts_offset:
+            info['parts'] = parts_value
 
         return info
     except:
@@ -139,6 +170,44 @@ def select_save_file():
             print("\n\nCancelled by user.")
             return None
 
+def get_dynamic_offsets(data):
+    """Find all property offsets dynamically in the save file."""
+    offsets = {}
+
+    # Find main properties
+    checkpoint_offset, _ = find_property_value(data, 'CurrentCheckpoint')
+    if checkpoint_offset:
+        offsets['CurrentCheckpoint'] = checkpoint_offset
+
+    pens_offset, _ = find_property_value(data, 'EpicPens')
+    if pens_offset:
+        offsets['EpicPens'] = pens_offset
+
+    parts_offset, _ = find_property_value(data, 'VehicleParts')
+    if parts_offset:
+        offsets['VehicleParts'] = parts_offset
+
+    # Find vehicle damage properties (these might have different search patterns)
+    damage_types = ['Frame', 'Engine', 'Tire.RL', 'Tire.FR', 'Tire.RR', 'Tire.FL']
+    for damage_type in damage_types:
+        search_str = f'DamageType.{damage_type}'
+        pos = data.find(search_str.encode('ascii'))
+        if pos != -1:
+            # Value is typically ~30-40 bytes after the damage type name
+            for offset_delta in range(30, 50):
+                value_offset = pos + len(search_str) + offset_delta
+                if value_offset + 4 <= len(data):
+                    try:
+                        value = struct.unpack_from('<I', data, value_offset)[0]
+                        if 0 <= value <= 100:  # Damage is typically 0-100
+                            key = f"VehicleDamage_{damage_type.replace('.', '')}"
+                            offsets[key] = value_offset
+                            break
+                    except:
+                        continue
+
+    return offsets
+
 def edit_save_file(input_file, output_file, modifications):
     """
     Edit the save file with specified modifications.
@@ -158,6 +227,9 @@ def edit_save_file(input_file, output_file, modifications):
 
     # Apply modifications
     for offset, new_value in modifications.items():
+        if offset is None:
+            print(f"⚠️  Skipping modification - offset not found")
+            continue
         old_value = read_int32(data, offset)
         data = write_int32(data, offset, new_value)
         print(f"✓ Modified offset 0x{offset:04X}: {old_value} → {new_value}")
@@ -185,64 +257,97 @@ OFFSETS = {
 }
 
 # Example usage scenarios
-def example_max_currency(input_file, output_file):
-    """Example: Give yourself maximum currency."""
+def example_max_currency(input_file, output_file, offsets):
+    """Example: Give yourself maximum health packs."""
+    if 'EpicPens' not in offsets:
+        print("⚠️  Error: EpicPens offset not found in save file")
+        return
     modifications = {
-        OFFSETS['EpicPens']: 9999,
+        offsets['EpicPens']: 9999,
     }
     edit_save_file(input_file, output_file, modifications)
 
-def example_max_parts(input_file, output_file):
+def example_max_parts(input_file, output_file, offsets):
     """Example: Give yourself maximum vehicle parts."""
+    if 'VehicleParts' not in offsets:
+        print("⚠️  Error: VehicleParts offset not found in save file")
+        return
     modifications = {
-        OFFSETS['VehicleParts']: 9999,
+        offsets['VehicleParts']: 9999,
     }
     edit_save_file(input_file, output_file, modifications)
 
-def example_repair_vehicle(input_file, output_file):
+def example_repair_vehicle(input_file, output_file, offsets):
     """Example: Fully repair your vehicle (set all damage to 0)."""
-    modifications = {
-        OFFSETS['VehicleDamage_Frame']: 0,
-        OFFSETS['VehicleDamage_Engine']: 0,
-        OFFSETS['VehicleDamage_TireRL']: 0,
-        OFFSETS['VehicleDamage_TireFR']: 0,
-        OFFSETS['VehicleDamage_TireRR']: 0,
-        OFFSETS['VehicleDamage_TireFL']: 0,
-    }
+    modifications = {}
+    damage_keys = ['VehicleDamage_Frame', 'VehicleDamage_Engine', 'VehicleDamage_TireRL',
+                   'VehicleDamage_TireFR', 'VehicleDamage_TireRR', 'VehicleDamage_TireFL']
+
+    for key in damage_keys:
+        if key in offsets:
+            modifications[offsets[key]] = 0
+
+    if not modifications:
+        print("⚠️  Error: No vehicle damage offsets found in save file")
+        return
+
     edit_save_file(input_file, output_file, modifications)
 
-def example_reset_progress(input_file, output_file):
+def example_reset_progress(input_file, output_file, offsets):
     """Example: Reset progress to checkpoint 0."""
+    if 'CurrentCheckpoint' not in offsets:
+        print("⚠️  Error: CurrentCheckpoint offset not found in save file")
+        return
     modifications = {
-        OFFSETS['CurrentCheckpoint']: 0,
+        offsets['CurrentCheckpoint']: 0,
     }
     edit_save_file(input_file, output_file, modifications)
 
-def example_god_mode(input_file, output_file):
-    """Example: God mode - max currency, max parts, full repair."""
-    modifications = {
-        OFFSETS['EpicPens']: 9999,
-        OFFSETS['VehicleParts']: 9999,
-        OFFSETS['VehicleDamage_Frame']: 0,
-        OFFSETS['VehicleDamage_Engine']: 0,
-        OFFSETS['VehicleDamage_TireRL']: 0,
-        OFFSETS['VehicleDamage_TireFR']: 0,
-        OFFSETS['VehicleDamage_TireRR']: 0,
-        OFFSETS['VehicleDamage_TireFL']: 0,
-    }
+def example_god_mode(input_file, output_file, offsets):
+    """Example: God mode - max health packs, max parts, full repair."""
+    modifications = {}
+
+    if 'EpicPens' in offsets:
+        modifications[offsets['EpicPens']] = 9999
+    if 'VehicleParts' in offsets:
+        modifications[offsets['VehicleParts']] = 9999
+
+    damage_keys = ['VehicleDamage_Frame', 'VehicleDamage_Engine', 'VehicleDamage_TireRL',
+                   'VehicleDamage_TireFR', 'VehicleDamage_TireRR', 'VehicleDamage_TireFL']
+    for key in damage_keys:
+        if key in offsets:
+            modifications[offsets[key]] = 0
+
+    if not modifications:
+        print("⚠️  Error: No property offsets found in save file")
+        return
+
     edit_save_file(input_file, output_file, modifications)
 
-def example_set_checkpoint(input_file, output_file, checkpoint_value):
-    """Example: Set progress to a specific checkpoint (1-12)."""
-    if not (1 <= checkpoint_value <= 12):
-        print(f"⚠️  Warning: Checkpoint value {checkpoint_value} is outside typical range (1-12)")
+def example_set_checkpoint(input_file, output_file, checkpoint_value, offsets):
+    """Example: Set progress to a specific checkpoint (1-17)."""
+    if 'CurrentCheckpoint' not in offsets:
+        print("⚠️  Error: CurrentCheckpoint offset not found in save file")
+        return
+
+    # Read and display current checkpoint value
+    with open(input_file, 'rb') as f:
+        data = f.read()
+
+    current_checkpoint = read_int32(data, offsets['CurrentCheckpoint'])
+    print(f"Current Checkpoint: {current_checkpoint}")
+    print(f"New Checkpoint: {checkpoint_value}")
+    print()
+
+    if not (1 <= checkpoint_value <= 17):
+        print(f"⚠️  Warning: Checkpoint value {checkpoint_value} is outside typical range (1-17)")
         confirm = input("Continue anyway? (y/n): ").strip().lower()
         if confirm != 'y':
             print("Cancelled.")
             return
 
     modifications = {
-        OFFSETS['CurrentCheckpoint']: checkpoint_value,
+        offsets['CurrentCheckpoint']: checkpoint_value,
     }
     edit_save_file(input_file, output_file, modifications)
 
@@ -280,17 +385,50 @@ if __name__ == "__main__":
 
     print("="*70)
 
+    # Display current save file stats and get dynamic offsets
+    with open(INPUT_FILE, 'rb') as f:
+        data = f.read()
+
+    # Get all dynamic offsets
+    DYNAMIC_OFFSETS = get_dynamic_offsets(data)
+
+    print("CURRENT SAVE FILE STATS:")
+    print("-"*70)
+
+    # Display current values
+    if 'CurrentCheckpoint' in DYNAMIC_OFFSETS:
+        checkpoint_value = read_int32(data, DYNAMIC_OFFSETS['CurrentCheckpoint'])
+        print(f"  Current Checkpoint: {checkpoint_value}")
+    else:
+        print(f"  Current Checkpoint: NOT FOUND")
+
+    if 'EpicPens' in DYNAMIC_OFFSETS:
+        pens_value = read_int32(data, DYNAMIC_OFFSETS['EpicPens'])
+        print(f"  EpicPens: {pens_value}")
+    else:
+        print(f"  EpicPens: NOT FOUND")
+
+    if 'VehicleParts' in DYNAMIC_OFFSETS:
+        parts_value = read_int32(data, DYNAMIC_OFFSETS['VehicleParts'])
+        print(f"  VehicleParts: {parts_value}")
+    else:
+        print(f"  VehicleParts: NOT FOUND")
+
+    print()
+    print("="*70)
+    print()
+
     # Step 2: Select modification type
     if len(sys.argv) > 1:
         choice = sys.argv[1]
     else:
         print("Available modifications:")
-        print("  1. Max Currency (9999 EpicPens)")
+        print("  1. Max HealthPacks (9999 EpicPens)")
         print("  2. Max Vehicle Parts (9999)")
         print("  3. Repair Vehicle (all damage = 0)")
         print("  4. Reset Progress (checkpoint 0)")
         print("  5. God Mode (max everything + full repair)")
-        print("  6. Set Progress Checkpoint (custom value 1-12)")
+        print("  6. Set Progress Checkpoint (custom value 1-17)")
         print()
         choice = input("Enter your choice (1-6): ").strip()
 
@@ -301,32 +439,32 @@ if __name__ == "__main__":
 
     try:
         if choice == '1':
-            output_file = os.path.join(OUTPUT_DIR, f"{base_name}_MaxCurrency.sav")
-            example_max_currency(INPUT_FILE, output_file)
+            output_file = os.path.join(OUTPUT_DIR, f"{base_name}_MaxHealthPacks.sav")
+            example_max_currency(INPUT_FILE, output_file, DYNAMIC_OFFSETS)
         elif choice == '2':
             output_file = os.path.join(OUTPUT_DIR, f"{base_name}_MaxParts.sav")
-            example_max_parts(INPUT_FILE, output_file)
+            example_max_parts(INPUT_FILE, output_file, DYNAMIC_OFFSETS)
         elif choice == '3':
             output_file = os.path.join(OUTPUT_DIR, f"{base_name}_Repaired.sav")
-            example_repair_vehicle(INPUT_FILE, output_file)
+            example_repair_vehicle(INPUT_FILE, output_file, DYNAMIC_OFFSETS)
         elif choice == '4':
             output_file = os.path.join(OUTPUT_DIR, f"{base_name}_ResetProgress.sav")
-            example_reset_progress(INPUT_FILE, output_file)
+            example_reset_progress(INPUT_FILE, output_file, DYNAMIC_OFFSETS)
         elif choice == '5':
             output_file = os.path.join(OUTPUT_DIR, f"{base_name}_GodMode.sav")
-            example_god_mode(INPUT_FILE, output_file)
+            example_god_mode(INPUT_FILE, output_file, DYNAMIC_OFFSETS)
         elif choice == '6':
             # Prompt for checkpoint value
             while True:
                 try:
-                    checkpoint_input = input("Enter checkpoint value (1-12): ").strip()
+                    checkpoint_input = input("Enter checkpoint value (1-17): ").strip()
                     checkpoint_value = int(checkpoint_input)
                     break
                 except ValueError:
                     print("Invalid input. Please enter a number.")
 
             output_file = os.path.join(OUTPUT_DIR, f"{base_name}_Checkpoint{checkpoint_value}.sav")
-            example_set_checkpoint(INPUT_FILE, output_file, checkpoint_value)
+            example_set_checkpoint(INPUT_FILE, output_file, checkpoint_value, DYNAMIC_OFFSETS)
         else:
             print(f"Invalid choice: {choice}")
             sys.exit(1)
